@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>內部技工單 — 數位版</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    
+    /* Print Optimization */
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+      body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+      }
+      .print-card {
+        box-shadow: none !important;
+        border: 1px solid #d1d5db !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+  <!-- Header / Navigation -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="bg-blue-600 text-white p-2 rounded-lg shadow-sm">
+          <i data-lucide="file-text" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg text-slate-900 leading-tight">內部技工單 — 數位系統</h1>
+          <p class="text-xs text-slate-500">Dental Lab Order System</p>
+        </div>
+      </div>
+
+      <!-- Mode Selector Tabs -->
+      <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <button id="tab-sender" onclick="switchRole('sender')" class="flex items-center space-x-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-150">
+          <i data-lucide="edit-3" class="w-4 h-4"></i>
+          <span>📝 送單者畫面</span>
+        </button>
+        <button id="tab-receiver" onclick="switchRole('receiver')" class="flex items-center space-x-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 relative">
+          <i data-lucide="wrench" class="w-4 h-4"></i>
+          <span>🛠️ 技工接收端</span>
+          <span id="urgent-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">!</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Sender View -->
+    <div id="sender-view" class="space-y-6">
+      
+      <!-- Order Form -->
+      <form id="lab-order-form" onsubmit="handleFormSubmit(event)" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 space-y-8 print-card">
+        
+        <!-- Urgent Toggle Banner -->
+        <div class="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl p-4 flex items-center justify-between no-print">
+          <div class="flex items-center space-x-3">
+            <div class="p-2 bg-red-100 text-red-600 rounded-lg">
+              <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-red-900">急件優先處置</h3>
+              <p class="text-xs text-red-600">標記為急件將高亮顯示於技工端並同步置頂</p>
+            </div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="is_urgent" class="sr-only peer">
+            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+          </label>
+        </div>
+
+        <!-- Basic Information Section -->
+        <div>
+          <h2 class="text-base font-bold text-slate-900 flex items-center space-x-2 border-b border-slate-200 pb-2 mb-4">
+            <i data-lucide="user" class="w-5 h-5 text-blue-600"></i>
+            <span>基本患者與診察資訊</span>
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">患者姓名 <span class="text-red-500">*</span></label>
+              <input type="text" id="patient_name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">病歷號碼</label>
+              <input type="text" id="chart_number" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">主治醫師 <span class="text-red-500">*</span></label>
+              <input type="text" id="doctor_name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">登記者 / 助理</label>
+              <input type="text" id="registrant" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">收件日期</label>
+              <input type="date" id="receive_date" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">預計約診日期 <span class="text-red-500">*</span></label>
+              <input type="date" id="appointment_date" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- Tooth Selection Chart -->
+        <div>
+          <h2 class="text-base font-bold text-slate-900 flex items-center space-x-2 border-b border-slate-200 pb-2 mb-4">
+            <i data-lucide="smile" class="w-5 h-5 text-blue-600"></i>
+            <span>牙位選擇 (FDI 二位數標示法)</span>
+          </h2>
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+            <p class="text-xs text-slate-500">點擊點選相關牙位：</p>
+            <!-- Maxillary (Upper) -->
+            <div class="flex justify-center items-center space-x-1 sm:space-x-2 overflow-x-auto pb-2">
+              <span class="text-xs font-bold text-slate-400 mr-2">右上</span>
+              <div id="teeth-q1" class="flex space-x-1"></div>
+              <div class="w-0.5 h-6 bg-slate-300 mx-2"></div>
+              <div id="teeth-q2" class="flex space-x-1"></div>
+              <span class="text-xs font-bold text-slate-400 ml-2">左上</span>
+            </div>
+            <!-- Mandibular (Lower) -->
+            <div class="flex justify-center items-center space-x-1 sm:space-x-2 overflow-x-auto pt-2 border-t border-slate-200">
+              <span class="text-xs font-bold text-slate-400 mr-2">右下</span>
+              <div id="teeth-q4" class="flex space-x-1"></div>
+              <div class="w-0.5 h-6 bg-slate-300 mx-2"></div>
+              <div id="teeth-q3" class="flex space-x-1"></div>
+              <span class="text-xs font-bold text-slate-400 ml-2">左下</span>
+            </div>
+            <div class="text-right">
+              <button type="button" onclick="clearToothSelection()" class="text-xs text-slate-500 hover:text-red-600 underline">清除選取牙位</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Work Categories & Items -->
+        <div>
+          <h2 class="text-base font-bold text-slate-900 flex items-center space-x-2 border-b border-slate-200 pb-2 mb-4">
+            <i data-lucide="layers" class="w-5 h-5 text-blue-600"></i>
+            <span>技工製作項目與規格</span>
+          </h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Category 1: CT / Digital -->
+            <div class="space-y-3">
+              <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider bg-slate-100 p-2 rounded">CT 模板 / 數位規劃</h3>
+              <div class="space-y-2">
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="CT模板 (定位珠)">
+                  <span>CT 模板 (定位珠)</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="CT模板 (假牙複製)">
+                  <span>CT 模板 (假牙複製)</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="植牙數位規劃">
+                  <span>植牙數位規劃</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="根尖切除手術規劃">
+                  <span>根尖切除手術規劃</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="ROMEXIS 軟體模擬">
+                  <span>ROMEXIS 軟體模擬</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="3D列印手術導板">
+                  <span>3D 列印手術導板</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Category 2: Models & Impression -->
+            <div class="space-y-3">
+              <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider bg-slate-100 p-2 rounded">模型 / 咬合與托盤</h3>
+              <div class="space-y-2">
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="透明維持板">
+                  <span>透明維持板</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="美白牙托">
+                  <span>美白牙托</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="灌模 (Boxing)">
+                  <span>灌模 (Boxing)</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="咬合蠟堤 (Wax-up Rim)">
+                  <span>咬合蠟堤 (Wax-up Rim)</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="上咬合器 (Articulator)">
+                  <span>上咬合器 (Articulator)</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="VERIFYING JIG">
+                  <span>VERIFYING JIG</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Category 3: Denture & Wax-up -->
+            <div class="space-y-3">
+              <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider bg-slate-100 p-2 rounded">假牙 / 蠟型與修補</h3>
+              <div class="space-y-2">
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="CLP手術定位板">
+                  <span>CLP 手術定位板</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="個人牙托 (Individual Tray)">
+                  <span>個人牙托 (Individual Tray)</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="模型翻模">
+                  <span>模型翻模</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="活動假牙修補/換底">
+                  <span>活動假牙修補 / 換底</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="CAD/3D列印蠟型">
+                  <span>CAD / 3D 列印蠟型</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="薄硬 VACUUM 板">
+                  <span>薄硬 VACUUM 板</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Category 4: Specialized & Surgical -->
+            <div class="space-y-3">
+              <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider bg-slate-100 p-2 rounded">特殊列印 / 咬合板 / 氧化鋯</h3>
+              <div class="space-y-2">
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="3D列印模型/自體移植牙/顎骨">
+                  <span>3D 列印模型 / 自體移植牙 / 顎骨</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="軟式咬合板">
+                  <span>軟式咬合板</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="臨時假牙 (Provisional)">
+                  <span>臨時假牙 (Provisional)</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="矯正資料數位建檔">
+                  <span>矯正資料數位建檔</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="氧化鋯後處理 (Zirconia)">
+                  <span>氧化鋯後處理 (Zirconia)</span>
+                </label>
+                <label class="flex items-center space-x-2 text-sm text-slate-700">
+                  <input type="checkbox" class="work-item rounded text-blue-600" value="正顎手術導板模板">
+                  <span>正顎手術導板模板</span>
+                </label>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Remarks / Instructions -->
+        <div>
+          <h2 class="text-base font-bold text-slate-900 flex items-center space-x-2 border-b border-slate-200 pb-2 mb-4">
+            <i data-lucide="message-square" class="w-5 h-5 text-blue-600"></i>
+            <span>特別交待事項</span>
+          </h2>
+          <textarea id="remarks" rows="3" placeholder="請填寫任何特殊指示、材料規格或注意事項..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"></textarea>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="flex justify-end space-x-3 pt-4 border-t border-slate-200 no-print">
+          <button type="reset" onclick="clearToothSelection()" class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-medium text-sm hover:bg-slate-50 transition-colors">重設表單</button>
+          <button type="submit" id="submit-btn" class="px-6 py-2.5 rounded-lg bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 transition-colors shadow-sm flex items-center space-x-2">
+            <i data-lucide="send" class="w-4 h-4"></i>
+            <span>送出技工單</span>
+          </button>
+        </div>
+
+      </form>
+
+      <!-- Sent Orders Quick View (Sender side readonly) -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 no-print">
+        <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center space-x-2">
+          <i data-lucide="clock" class="w-5 h-5 text-slate-500"></i>
+          <span>近期送出記錄 (唯讀)</span>
+        </h3>
+        <div id="sender-orders-list" class="space-y-3">
+          <p class="text-sm text-slate-500 italic">載入中...</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Receiver View -->
+    <div id="receiver-view" class="hidden space-y-6">
+      
+      <!-- Filter Controls Bar -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center space-x-2">
+          <span class="text-sm font-semibold text-slate-700">狀態篩選：</span>
+          <select id="filter-status" onchange="renderReceiverOrders()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="all">全部狀態</option>
+            <option value="pending">待處理</option>
+            <option value="processing">處理中</option>
+            <option value="hold">壓單</option>
+            <option value="completed">已完成</option>
+          </select>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <label class="flex items-center space-x-2 text-sm text-slate-700 cursor-pointer">
+            <input type="checkbox" id="filter-urgent" onchange="renderReceiverOrders()" class="rounded text-red-600">
+            <span class="font-semibold text-red-600">僅顯示急件 🚨</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Receiver Orders Cards Container -->
+      <div id="receiver-orders-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <p class="text-sm text-slate-500 italic">載入中...</p>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Script Implementation -->
+  <script>
+    // Global State
+    let currentRole = 'sender';
+    let selectedTeeth = new Set();
+    let ordersCache = [];
+
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // FDI Tooth Chart Setup
+    const quadrants = {
+      'q1': [18, 17, 16, 15, 14, 13, 12, 11],
+      'q2': [21, 22, 23, 24, 25, 26, 27, 28],
+      'q4': [48, 47, 46, 45, 44, 43, 42, 41],
+      'q3': [31, 32, 33, 34, 35, 36, 37, 38]
+    };
+
+    function renderToothChart() {
+      Object.keys(quadrants).forEach(qKey => {
+        const container = document.getElementById(`teeth-${qKey}`);
+        if (!container) return;
+        container.innerHTML = quadrants[qKey].map(num => `
+          <button type="button" onclick="toggleTooth(${num})" id="tooth-${num}" 
+            class="w-7 h-7 rounded-md border text-xs font-semibold flex items-center justify-center transition-all duration-150 border-slate-300 bg-white text-slate-700 hover:bg-slate-100">
+            ${num}
+          </button>
+        `).join('');
+      });
+    }
+
+    function toggleTooth(num) {
+      const btn = document.getElementById(`tooth-${num}`);
+      if (selectedTeeth.has(num)) {
+        selectedTeeth.delete(num);
+        btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+        btn.classList.add('bg-white', 'text-slate-700', 'border-slate-300');
+      } else {
+        selectedTeeth.add(num);
+        btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+        btn.classList.remove('bg-white', 'text-slate-700', 'border-slate-300');
+      }
+    }
+
+    function clearToothSelection() {
+      selectedTeeth.clear();
+      document.querySelectorAll('[id^="tooth-"]').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+        btn.classList.add('bg-white', 'text-slate-700', 'border-slate-300');
+      });
+    }
+
+    // Role Switching
+    function switchRole(role) {
+      currentRole = role;
+      const senderBtn = document.getElementById('tab-sender');
+      const receiverBtn = document.getElementById('tab-receiver');
+      const senderView = document.getElementById('sender-view');
+      const receiverView = document.getElementById('receiver-view');
+
+      if (role === 'sender') {
+        senderBtn.className = "flex items-center space-x-2 px-4 py-1.5 rounded-lg text-sm font-medium bg-white text-blue-600 shadow-sm border border-slate-200";
+        receiverBtn.className = "flex items-center space-x-2 px-4 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900";
+        senderView.classList.remove('hidden');
+        receiverView.classList.add('hidden');
+      } else {
+        receiverBtn.className = "flex items-center space-x-2 px-4 py-1.5 rounded-lg text-sm font-medium bg-white text-blue-600 shadow-sm border border-slate-200";
+        senderBtn.className = "flex items-center space-x-2 px-4 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900";
+        receiverView.classList.remove('hidden');
+        senderView.classList.add('hidden');
+        renderReceiverOrders();
+      }
+    }
+
+    // Local Storage Mock Database Implementation (Guarantees functional out-of-the-box experience)
+    function getStoredOrders() {
+      const data = localStorage.getItem('lab_orders');
+      return data ? JSON.parse(data) : [];
+    }
+
+    function saveStoredOrders(orders) {
+      localStorage.setItem('lab_orders', JSON.stringify(orders));
+      ordersCache = orders;
+      renderSenderOrders();
+      renderReceiverOrders();
+    }
+
+    // Initialize Mock Data if Empty
+    function initData() {
+      ordersCache = getStoredOrders();
+      if (ordersCache.length === 0) {
+        ordersCache = [
+          {
+            id: 'ord-101',
+            patient_name: '陳大明',
+            chart_number: 'A1234567',
+            doctor_name: '張醫師',
+            registrant: '林助理',
+            receive_date: '2026-08-10',
+            appointment_date: '2026-08-15',
+            teeth: [11, 12, 21],
+            items: ['3D列印手術導板', '植牙數位規劃'],
+            remarks: '導板需預留 2.0mm 空間',
+            is_urgent: true,
+            status: 'processing',
+            tech_note: 'CAD 設計完成，列印中',
+            created_at: new Date().toISOString()
+          },
+          {
+            id: 'ord-102',
+            patient_name: '林美麗',
+            chart_number: 'B9876543',
+            doctor_name: '李醫師',
+            registrant: '王助理',
+            receive_date: '2026-08-11',
+            appointment_date: '2026-08-18',
+            teeth: [36, 37],
+            items: ['透明維持板', '灌模 (Boxing)'],
+            remarks: '無特別要求',
+            is_urgent: false,
+            status: 'pending',
+            tech_note: '',
+            created_at: new Date().toISOString()
+          }
+        ];
+        saveStoredOrders(ordersCache);
+      } else {
+        renderSenderOrders();
+        renderReceiverOrders();
+      }
+    }
+
+    // Form Submission
+    function handleFormSubmit(e) {
+      e.preventDefault();
+
+      const items = Array.from(document.querySelectorAll('.work-item:checked')).map(cb => cb.value);
+      
+      const newOrder = {
+        id: 'ord-' + Date.now().toString().slice(-6),
+        patient_name: document.getElementById('patient_name').value,
+        chart_number: document.getElementById('chart_number').value,
+        doctor_name: document.getElementById('doctor_name').value,
+        registrant: document.getElementById('registrant').value,
+        receive_date: document.getElementById('receive_date').value,
+        appointment_date: document.getElementById('appointment_date').value,
+        teeth: Array.from(selectedTeeth).sort((a, b) => a - b),
+        items: items,
+        remarks: document.getElementById('remarks').value,
+        is_urgent: document.getElementById('is_urgent').checked,
+        status: 'pending',
+        tech_note: '',
+        created_at: new Date().toISOString()
+      };
+
+      ordersCache.unshift(newOrder);
+      saveStoredOrders(ordersCache);
+
+      alert('✅ 技工單已成功送出！');
+      document.getElementById('lab-order-form').reset();
+      clearToothSelection();
+    }
+
+    // Render Sender Orders
+    function renderSenderOrders() {
+      const container = document.getElementById('sender-orders-list');
+      if (!container) return;
+
+      if (ordersCache.length === 0) {
+        container.innerHTML = `<p class="text-sm text-slate-400">目前尚無歷史單據</p>`;
+        return;
+      }
+
+      container.innerHTML = ordersCache.slice(0, 5).map(o => `
+        <div class="p-3 border border-slate-200 rounded-lg flex items-center justify-between text-sm">
+          <div class="flex items-center space-x-3">
+            ${o.is_urgent ? '<span class="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded font-bold">急件</span>' : ''}
+            <span class="font-bold text-slate-800">${o.patient_name}</span>
+            <span class="text-slate-500">(${o.doctor_name} 醫師)</span>
+            <span class="text-xs text-slate-400">約診: ${o.appointment_date}</span>
+          </div>
+          <div>
+            ${getStatusBadge(o.status)}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Render Receiver Orders
+    function renderReceiverOrders() {
+      const container = document.getElementById('receiver-orders-list');
+      if (!container) return;
+
+      const filterStatus = document.getElementById('filter-status').value;
+      const filterUrgent = document.getElementById('filter-urgent').checked;
+
+      let filtered = ordersCache.filter(o => {
+        if (filterStatus !== 'all' && o.status !== filterStatus) return false;
+        if (filterUrgent && !o.is_urgent) return false;
+        return true;
+      });
+
+      // Sort: Urgent first, then date
+      filtered.sort((a, b) => (b.is_urgent ? 1 : 0) - (a.is_urgent ? 1 : 0));
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="col-span-full text-center py-8 text-slate-400">尚無符合篩選條件的技工單</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(o => `
+        <div class="bg-white rounded-xl border ${o.is_urgent ? 'border-red-400 shadow-red-50' : 'border-slate-200'} shadow-sm p-4 space-y-3 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+              <div class="flex items-center space-x-2">
+                ${o.is_urgent ? '<span class="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded animate-pulse">急件</span>' : ''}
+                <h4 class="font-bold text-base text-slate-900">${o.patient_name}</h4>
+                <span class="text-xs text-slate-400">#${o.chart_number || '無病歷號'}</span>
+              </div>
+              <div>
+                ${getStatusBadge(o.status)}
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-xs text-slate-600 mt-2">
+              <div><span class="font-semibold text-slate-500">醫師:</span> ${o.doctor_name}</div>
+              <div><span class="font-semibold text-slate-500">約診日:</span> ${o.appointment_date}</div>
+              <div><span class="font-semibold text-slate-500">登記者:</span> ${o.registrant || '未填'}</div>
+              <div><span class="font-semibold text-slate-500">收件日:</span> ${o.receive_date || '未填'}</div>
+            </div>
+
+            ${o.teeth && o.teeth.length > 0 ? `
+              <div class="mt-2 text-xs">
+                <span class="font-semibold text-slate-500">牙位:</span> 
+                <span class="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-mono font-bold">${o.teeth.join(', ')}</span>
+              </div>
+            ` : ''}
+
+            <div class="mt-2 space-y-1">
+              <span class="text-xs font-semibold text-slate-500">製作項目:</span>
+              <div class="flex flex-wrap gap-1">
+                ${o.items.map(item => `<span class="bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded border border-slate-200">${item}</span>`).join('')}
+              </div>
+            </div>
+
+            ${o.remarks ? `
+              <div class="mt-2 text-xs bg-amber-50 text-amber-800 p-2 rounded border border-amber-200">
+                <span class="font-bold">交待事項:</span> ${o.remarks}
+              </div>
+            ` : ''}
+          </div>
+
+          <div class="border-t border-slate-100 pt-3 space-y-2">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-500 mb-1">技工備註 / 進度更新</label>
+              <input type="text" value="${o.tech_note || ''}" onchange="updateTechNote('${o.id}', this.value)" placeholder="輸入技工備註..." class="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
+            </div>
+
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-[11px] text-slate-400">變更狀態：</span>
+              <select onchange="updateOrderStatus('${o.id}', this.value)" class="text-xs px-2 py-1 border border-slate-300 rounded font-medium bg-slate-50">
+                <option value="pending" ${o.status === 'pending' ? 'selected' : ''}>待處理</option>
+                <option value="processing" ${o.status === 'processing' ? 'selected' : ''}>處理中</option>
+                <option value="hold" ${o.status === 'hold' ? 'selected' : ''}>壓單</option>
+                <option value="completed" ${o.status === 'completed' ? 'selected' : ''}>已完成</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateOrderStatus(id, newStatus) {
+      const idx = ordersCache.findIndex(o => o.id === id);
+      if (idx !== -1) {
+        ordersCache[idx].status = newStatus;
+        saveStoredOrders(ordersCache);
+      }
+    }
+
+    function updateTechNote(id, note) {
+      const idx = ordersCache.findIndex(o => o.id === id);
+      if (idx !== -1) {
+        ordersCache[idx].tech_note = note;
+        saveStoredOrders(ordersCache);
+      }
+    }
+
+    function getStatusBadge(status) {
+      switch (status) {
+        case 'pending':
+          return `<span class="bg-slate-100 text-slate-700 text-xs px-2.5 py-1 rounded-full font-semibold">待處理</span>`;
+        case 'processing':
+          return `<span class="bg-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-full font-semibold">處理中</span>`;
+        case 'hold':
+          return `<span class="bg-amber-100 text-amber-700 text-xs px-2.5 py-1 rounded-full font-semibold">壓單</span>`;
+        case 'completed':
+          return `<span class="bg-emerald-100 text-emerald-700 text-xs px-2.5 py-1 rounded-full font-semibold">已完成</span>`;
+        default:
+          return `<span class="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded">未定</span>`;
+      }
+    }
+
+    // Initialization on load
+    window.onload = function() {
+      renderToothChart();
+      switchRole('sender');
+      initData();
+    };
+  </script>
+</body>
+</html>
